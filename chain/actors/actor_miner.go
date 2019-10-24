@@ -2,6 +2,7 @@ package actors
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/filecoin-project/lotus/build"
@@ -54,9 +55,9 @@ type StorageMinerActorState struct {
 	// removal penalization is needed.
 	NextDoneSet types.BitField
 
-	// Deals this miner has been slashed for since the last post submission.
-	//TODO: unsupported map key type "Cid" (if you want to use struct keys, your atlas needs a transform to string)
-	//ArbitratedDeals map[cid.Cid]struct{}
+	// UnprovenSectors is the set of sectors that have been committed to but not
+	// yet had their proofs submitted
+	UnprovenSectors map[string]*UnprovenSector
 
 	// Amount of power this miner has.
 	Power types.BigInt
@@ -206,15 +207,20 @@ func (sma StorageMinerActor) StorageMinerConstructor(act *types.Actor, vmctx typ
 }
 
 type CommitSectorParams struct {
-	SectorID  uint64
-	CommD     []byte
-	CommR     []byte
-	CommRStar []byte
-	Proof     []byte
+	SectorID uint64
+	CommD    []byte
+	CommR    []byte
+	// Deals []uint64
+}
+
+type UnprovenSector struct {
+	CommD        []byte
+	CommR        []byte
+	SubmitHeight uint64
 }
 
 func (sma StorageMinerActor) CommitSector(act *types.Actor, vmctx types.VMContext, params *CommitSectorParams) ([]byte, ActorError) {
-	ctx := context.TODO()
+	ctx := vmctx.Context()
 	oldstate, self, err := loadState(vmctx)
 	if err != nil {
 		return nil, err
@@ -223,15 +229,6 @@ func (sma StorageMinerActor) CommitSector(act *types.Actor, vmctx types.VMContex
 	mi, err := loadMinerInfo(vmctx, self)
 	if err != nil {
 		return nil, err
-	}
-
-	// TODO: this needs to get normalized to either the ID address or the actor address
-	maddr := vmctx.Message().To
-
-	if ok, err := ValidatePoRep(maddr, mi.SectorSize, params); err != nil {
-		return nil, err
-	} else if !ok {
-		return nil, aerrors.New(1, "bad proof!")
 	}
 
 	// make sure the miner isnt trying to submit a pre-existing sector
@@ -251,10 +248,66 @@ func (sma StorageMinerActor) CommitSector(act *types.Actor, vmctx types.VMContex
 		return nil, aerrors.New(3, "not enough collateral")
 	}
 
+	self.UnprovenSectors[uintToStringKey(params.SectorID)] = &UnprovenSector{
+		CommR:        params.CommR,
+		CommD:        params.CommD,
+		SubmitHeight: vmctx.BlockHeight(),
+	}
+
+	nstate, err := vmctx.Storage().Put(self)
+	if err != nil {
+		return nil, err
+	}
+	if err := vmctx.Storage().Commit(oldstate, nstate); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func uintToStringKey(i uint64) string {
+	buf := make([]byte, 10)
+	n := binary.PutUvarint(buf, i)
+	return string(buf[:n])
+}
+
+type SubmitSectorProofParams struct {
+	Proof    []byte
+	SectorID uint64
+}
+
+func (sma StorageMinerActor) SubmitSectorProof(act *types.Actor, vmctx types.VMContext, params *SubmitSectorProofParams) ([]byte, ActorError) {
+	ctx := vmctx.Context()
+	oldstate, self, err := loadState(vmctx)
+	if err != nil {
+		return nil, err
+	}
+
+	mi, err := loadMinerInfo(vmctx, self)
+	if err != nil {
+		return nil, err
+	}
+
+	us, ok := self.UnprovenSectors[uintToStringKey(params.SectorID)]
+	if !ok {
+		return nil, aerrors.New(1, "no pre-commitment found for sector")
+	}
+	delete(self.UnprovenSectors, uintToStringKey(params.SectorID))
+
+	// TODO: ensure normalization to ID address
+	maddr := vmctx.Message().To
+
+	rand, err := vmctx.GetRandomness(us.SubmitHeight + build.InteractivePoRepDelay)
+	if ok, err := ValidatePoRep(maddr, mi.SectorSize, us.CommD, us.CommR, rand, params.Proof, params.SectorID); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, aerrors.New(2, "bad proof!")
+	}
+
 	// Note: There must exist a unique index in the miner's sector set for each
 	// sector ID. The `faults`, `recovered`, and `done` parameters of the
 	// SubmitPoSt method express indices into this sector set.
-	nssroot, err := AddToSectorSet(ctx, vmctx.Storage(), self.Sectors, params.SectorID, params.CommR, params.CommD)
+	nssroot, err := AddToSectorSet(ctx, vmctx.Storage(), self.Sectors, params.SectorID, us.CommR, us.CommD)
 	if err != nil {
 		return nil, err
 	}
@@ -511,8 +564,8 @@ func GetFromSectorSet(ctx context.Context, s types.Storage, ss cid.Cid, sectorID
 	return true, comms[0], comms[1], nil
 }
 
-func ValidatePoRep(maddr address.Address, ssize types.BigInt, params *CommitSectorParams) (bool, ActorError) {
-	ok, err := sectorbuilder.VerifySeal(ssize.Uint64(), params.CommR, params.CommD, params.CommRStar, maddr, params.SectorID, params.Proof)
+func ValidatePoRep(maddr address.Address, ssize types.BigInt, commD, commR, rand, proof []byte, sectorID uint64) (bool, ActorError) {
+	ok, err := sectorbuilder.VerifySeal(ssize.Uint64(), commR, commD, rand, maddr, sectorID, proof)
 	if err != nil {
 		return false, aerrors.Absorb(err, 25, "verify seal failed")
 	}

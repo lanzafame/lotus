@@ -197,7 +197,7 @@ func (t *StorageMinerActorState) MarshalCBOR(w io.Writer) error {
 		_, err := w.Write(cbg.CborNull)
 		return err
 	}
-	if _, err := w.Write([]byte{140}); err != nil {
+	if _, err := w.Write([]byte{141}); err != nil {
 		return err
 	}
 
@@ -244,6 +244,26 @@ func (t *StorageMinerActorState) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
+	// t.t.UnprovenSectors (map[string]*actors.UnprovenSector)
+	if err := cbg.CborWriteHeader(w, cbg.MajMap, uint64(len(t.UnprovenSectors))); err != nil {
+		return err
+	}
+
+	for k, v := range t.UnprovenSectors {
+
+		if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajTextString, uint64(len(k)))); err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte(k)); err != nil {
+			return err
+		}
+
+		if err := v.MarshalCBOR(w); err != nil {
+			return err
+		}
+
+	}
+
 	// t.t.Power (types.BigInt)
 	if err := t.Power.MarshalCBOR(w); err != nil {
 		return err
@@ -277,7 +297,7 @@ func (t *StorageMinerActorState) UnmarshalCBOR(r io.Reader) error {
 		return fmt.Errorf("cbor input should be of type array")
 	}
 
-	if extra != 12 {
+	if extra != 13 {
 		return fmt.Errorf("cbor input had wrong number of fields")
 	}
 
@@ -360,6 +380,59 @@ func (t *StorageMinerActorState) UnmarshalCBOR(r io.Reader) error {
 		if err := t.NextDoneSet.UnmarshalCBOR(br); err != nil {
 			return err
 		}
+
+	}
+	// t.t.UnprovenSectors (map[string]*actors.UnprovenSector)
+
+	maj, extra, err = cbg.CborReadHeader(br)
+	if err != nil {
+		return err
+	}
+	if maj != cbg.MajMap {
+		return fmt.Errorf("expected a map (major type 5)")
+	}
+	if extra > 4096 {
+		return fmt.Errorf("t.UnprovenSectors: map too large")
+	}
+
+	t.UnprovenSectors = make(map[string]*UnprovenSector, extra)
+
+	for i, l := 0, int(extra); i < l; i++ {
+
+		var k string
+
+		{
+			sval, err := cbg.ReadString(br)
+			if err != nil {
+				return err
+			}
+
+			k = string(sval)
+		}
+
+		var v *UnprovenSector
+
+		{
+
+			pb, err := br.PeekByte()
+			if err != nil {
+				return err
+			}
+			if pb == cbg.CborNull[0] {
+				var nbuf [1]byte
+				if _, err := br.Read(nbuf[:]); err != nil {
+					return err
+				}
+			} else {
+				v = new(UnprovenSector)
+				if err := v.UnmarshalCBOR(br); err != nil {
+					return err
+				}
+			}
+
+		}
+
+		t.UnprovenSectors[k] = v
 
 	}
 	// t.t.Power (types.BigInt)
@@ -496,7 +569,7 @@ func (t *CommitSectorParams) MarshalCBOR(w io.Writer) error {
 		_, err := w.Write(cbg.CborNull)
 		return err
 	}
-	if _, err := w.Write([]byte{133}); err != nil {
+	if _, err := w.Write([]byte{131}); err != nil {
 		return err
 	}
 
@@ -520,22 +593,6 @@ func (t *CommitSectorParams) MarshalCBOR(w io.Writer) error {
 	if _, err := w.Write(t.CommR); err != nil {
 		return err
 	}
-
-	// t.t.CommRStar ([]uint8)
-	if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajByteString, uint64(len(t.CommRStar)))); err != nil {
-		return err
-	}
-	if _, err := w.Write(t.CommRStar); err != nil {
-		return err
-	}
-
-	// t.t.Proof ([]uint8)
-	if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajByteString, uint64(len(t.Proof)))); err != nil {
-		return err
-	}
-	if _, err := w.Write(t.Proof); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -550,7 +607,7 @@ func (t *CommitSectorParams) UnmarshalCBOR(r io.Reader) error {
 		return fmt.Errorf("cbor input should be of type array")
 	}
 
-	if extra != 5 {
+	if extra != 3 {
 		return fmt.Errorf("cbor input had wrong number of fields")
 	}
 
@@ -598,40 +655,100 @@ func (t *CommitSectorParams) UnmarshalCBOR(r io.Reader) error {
 	if _, err := io.ReadFull(br, t.CommR); err != nil {
 		return err
 	}
-	// t.t.CommRStar ([]uint8)
+	return nil
+}
+
+func (t *UnprovenSector) MarshalCBOR(w io.Writer) error {
+	if t == nil {
+		_, err := w.Write(cbg.CborNull)
+		return err
+	}
+	if _, err := w.Write([]byte{131}); err != nil {
+		return err
+	}
+
+	// t.t.CommD ([]uint8)
+	if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajByteString, uint64(len(t.CommD)))); err != nil {
+		return err
+	}
+	if _, err := w.Write(t.CommD); err != nil {
+		return err
+	}
+
+	// t.t.CommR ([]uint8)
+	if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajByteString, uint64(len(t.CommR)))); err != nil {
+		return err
+	}
+	if _, err := w.Write(t.CommR); err != nil {
+		return err
+	}
+
+	// t.t.SubmitHeight (uint64)
+	if _, err := w.Write(cbg.CborEncodeMajorType(cbg.MajUnsignedInt, t.SubmitHeight)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *UnprovenSector) UnmarshalCBOR(r io.Reader) error {
+	br := cbg.GetPeeker(r)
+
+	maj, extra, err := cbg.CborReadHeader(br)
+	if err != nil {
+		return err
+	}
+	if maj != cbg.MajArray {
+		return fmt.Errorf("cbor input should be of type array")
+	}
+
+	if extra != 3 {
+		return fmt.Errorf("cbor input had wrong number of fields")
+	}
+
+	// t.t.CommD ([]uint8)
 
 	maj, extra, err = cbg.CborReadHeader(br)
 	if err != nil {
 		return err
 	}
 	if extra > 8192 {
-		return fmt.Errorf("t.CommRStar: array too large (%d)", extra)
+		return fmt.Errorf("t.CommD: array too large (%d)", extra)
 	}
 
 	if maj != cbg.MajByteString {
 		return fmt.Errorf("expected byte array")
 	}
-	t.CommRStar = make([]byte, extra)
-	if _, err := io.ReadFull(br, t.CommRStar); err != nil {
+	t.CommD = make([]byte, extra)
+	if _, err := io.ReadFull(br, t.CommD); err != nil {
 		return err
 	}
-	// t.t.Proof ([]uint8)
+	// t.t.CommR ([]uint8)
 
 	maj, extra, err = cbg.CborReadHeader(br)
 	if err != nil {
 		return err
 	}
 	if extra > 8192 {
-		return fmt.Errorf("t.Proof: array too large (%d)", extra)
+		return fmt.Errorf("t.CommR: array too large (%d)", extra)
 	}
 
 	if maj != cbg.MajByteString {
 		return fmt.Errorf("expected byte array")
 	}
-	t.Proof = make([]byte, extra)
-	if _, err := io.ReadFull(br, t.Proof); err != nil {
+	t.CommR = make([]byte, extra)
+	if _, err := io.ReadFull(br, t.CommR); err != nil {
 		return err
 	}
+	// t.t.SubmitHeight (uint64)
+
+	maj, extra, err = cbg.CborReadHeader(br)
+	if err != nil {
+		return err
+	}
+	if maj != cbg.MajUnsignedInt {
+		return fmt.Errorf("wrong type for uint64 field")
+	}
+	t.SubmitHeight = extra
 	return nil
 }
 

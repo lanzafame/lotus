@@ -47,6 +47,7 @@ func main() {
 		actors.StorageMinerActorState{},
 		actors.StorageMinerConstructorParams{},
 		actors.CommitSectorParams{},
+		actors.UnprovenSector{},
 		actors.MinerInfo{},
 		actors.SubmitPoStParams{},
 		actors.PieceInclVoucherData{},
