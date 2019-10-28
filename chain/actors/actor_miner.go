@@ -356,7 +356,7 @@ func (sma StorageMinerActor) SubmitPoSt(act *types.Actor, vmctx types.VMContext,
 
 	var seed [sectorbuilder.CommLen]byte
 	{
-		randHeight := currentProvingPeriodEnd - build.PoSTChallangeTime
+		randHeight := currentProvingPeriodEnd - build.PoStChallangeTime - build.PoStRandomnessLookback
 		if vmctx.BlockHeight() <= randHeight {
 			// TODO: spec, retcode
 			return nil, aerrors.Newf(1, "submit PoSt called outside submission window (%d < %d)", vmctx.BlockHeight(), randHeight)
@@ -654,7 +654,7 @@ func (sma StorageMinerActor) AddFaults(act *types.Actor, vmctx types.VMContext, 
 		return nil, aerr
 	}
 
-	challengeHeight := self.ProvingPeriodEnd - build.PoSTChallangeTime
+	challengeHeight := self.ProvingPeriodEnd - build.PoStChallangeTime
 
 	if vmctx.BlockHeight() < challengeHeight {
 		// TODO: optimized bitfield methods
