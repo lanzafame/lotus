@@ -3,11 +3,11 @@ package storage
 import (
 	"bytes"
 	"context"
+	"golang.org/x/xerrors"
 	"io"
 	"math"
 	"math/rand"
-
-	"golang.org/x/xerrors"
+	"os"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/actors"
@@ -23,7 +23,17 @@ func (m *Miner) pledgeSector(ctx context.Context, sectorID uint64, existingPiece
 	deals := make([]actors.StorageDealProposal, len(sizes))
 	for i, size := range sizes {
 		release := m.sb.RateLimit()
-		commP, err := sectorbuilder.GeneratePieceCommitment(io.LimitReader(rand.New(rand.NewSource(42)), int64(size)), size)
+		f, err := os.OpenFile("/home/lanzafame/padded-file.txt", os.O_RDONLY, 0755)
+		if err != nil {
+			panic(err)
+		}
+		fi, err := f.Stat()
+		if err != nil {
+			panic(err)
+		}
+		commP, err := sectorbuilder.GeneratePieceCommitment(f, uint64(fi.Size()))
+		//commP, err := sectorbuilder.GeneratePieceCommitment(io.LimitReader(rand.New(rand.NewSource(42)), int64(size)), size)
+
 		release()
 
 		if err != nil {
@@ -104,6 +114,9 @@ func (m *Miner) pledgeSector(ctx context.Context, sectorID uint64, existingPiece
 }
 
 func (m *Miner) PledgeSector() error {
+	size := sectorbuilder.UserBytesForSectorSize(m.sb.SectorSize())
+	println("sector size: ", size)
+
 	go func() {
 		ctx := context.TODO() // we can't use the context from command which invokes
 		// this, as we run everything here async, and it's cancelled when the
