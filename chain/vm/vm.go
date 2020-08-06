@@ -91,6 +91,9 @@ func (bs *gasChargingBlocks) Put(blk block.Block) error {
 }
 
 func (vm *VM) makeRuntime(ctx context.Context, msg *types.Message, origin address.Address, originNonce uint64, usedGas int64, nac uint64) *Runtime {
+	_, span := trace.StartSpan(ctx, "vm.makeRuntime")
+	defer span.End()
+
 	rt := &Runtime{
 		ctx:         ctx,
 		vm:          vm,
@@ -188,6 +191,9 @@ type ApplyRet struct {
 
 func (vm *VM) send(ctx context.Context, msg *types.Message, parent *Runtime,
 	gasCharge *GasCharge, start time.Time) ([]byte, aerrors.ActorError, *Runtime) {
+
+	_, span := trace.StartSpan(ctx, "vm.send")
+	defer span.End()
 
 	st := vm.cstate
 
@@ -289,6 +295,9 @@ func checkMessage(msg *types.Message) error {
 }
 
 func (vm *VM) ApplyImplicitMessage(ctx context.Context, msg *types.Message) (*ApplyRet, error) {
+	_, span := trace.StartSpan(ctx, "vm.ApplyImplicitMessage")
+	defer span.End()
+
 	start := build.Clock.Now()
 	ret, actorErr, rt := vm.send(ctx, msg, nil, nil, start)
 	rt.finilizeGasTracing()

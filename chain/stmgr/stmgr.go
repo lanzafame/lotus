@@ -63,7 +63,7 @@ func cidsToKey(cids []cid.Cid) string {
 }
 
 func (sm *StateManager) TipSetState(ctx context.Context, ts *types.TipSet) (st cid.Cid, rec cid.Cid, err error) {
-	ctx, span := trace.StartSpan(ctx, "tipSetState")
+	ctx, span := trace.StartSpan(ctx, "stmgr.tipSetState")
 	defer span.End()
 	if span.IsRecordingEvents() {
 		span.AddAttributes(trace.StringAttribute("tipset", fmt.Sprint(ts.Cids())))
@@ -151,6 +151,9 @@ type BlockMessages struct {
 type ExecCallback func(cid.Cid, *types.Message, *vm.ApplyRet) error
 
 func (sm *StateManager) ApplyBlocks(ctx context.Context, parentEpoch abi.ChainEpoch, pstate cid.Cid, bms []BlockMessages, epoch abi.ChainEpoch, r vm.Rand, cb ExecCallback) (cid.Cid, cid.Cid, error) {
+	_, span := trace.StartSpan(ctx, "stmgr.ApplyBlocks")
+	defer span.End()
+
 	vmi, err := sm.newVM(pstate, epoch, r, sm.cs.Blockstore(), sm.cs.VMSys(), sm.GetVestedFunds)
 	if err != nil {
 		return cid.Undef, cid.Undef, xerrors.Errorf("instantiating VM failed: %w", err)
