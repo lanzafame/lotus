@@ -65,11 +65,9 @@ func cidsToKey(cids []cid.Cid) string {
 func (sm *StateManager) TipSetState(ctx context.Context, ts *types.TipSet) (st cid.Cid, rec cid.Cid, err error) {
 	ctx, span := trace.StartSpan(ctx, "stmgr.TipSetState")
 	defer span.End()
-	if span.IsRecordingEvents() {
-		span.AddAttributes(trace.StringAttribute("tipset", fmt.Sprint(ts.Cids())))
-		// make sure that cache is set to false for "this" call of TipSetState
-		span.AddAttributes(trace.BoolAttribute("cache", false))
-	}
+	span.AddAttributes(trace.StringAttribute("tipset", fmt.Sprint(ts.Cids())))
+	// make sure that cache is set to false for "this" call of TipSetState
+	span.AddAttributes(trace.BoolAttribute("cache", false))
 
 	ck := cidsToKey(ts.Cids())
 	sm.stlk.Lock()
@@ -113,6 +111,8 @@ func (sm *StateManager) TipSetState(ctx context.Context, ts *types.TipSet) (st c
 		return ts.Blocks()[0].ParentStateRoot, ts.Blocks()[0].ParentMessageReceipts, nil
 	}
 
+	span.AddAttributes(trace.BoolAttribute("cache", false))
+	span.AddAttributes(trace.BoolAttribute("computecalled", true))
 	st, rec, err = sm.computeTipSetState(ctx, ts.Blocks(), nil)
 	if err != nil {
 		return cid.Undef, cid.Undef, err
