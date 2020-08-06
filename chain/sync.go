@@ -1029,6 +1029,7 @@ func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock
 		}
 	}
 
+	ictx, ispan := trace.StartSpan(ctx, "checkSecpkMessages")
 	smArr := adt.MakeEmptyArray(store)
 	for i, m := range b.SecpkMessages {
 		if err := checkMsg(m); err != nil {
@@ -1037,7 +1038,7 @@ func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock
 
 		// `From` being an account actor is only validated inside the `vm.ResolveToKeyAddr` call
 		// in `StateManager.ResolveToKeyAddress` here (and not in `checkMsg`).
-		kaddr, err := syncer.sm.ResolveToKeyAddress(ctx, m.Message.From, baseTs)
+		kaddr, err := syncer.sm.ResolveToKeyAddress(ictx, m.Message.From, baseTs)
 		if err != nil {
 			return xerrors.Errorf("failed to resolve key addr: %w", err)
 		}
@@ -1051,6 +1052,7 @@ func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock
 			return xerrors.Errorf("failed to put secpk message at index %d: %w", i, err)
 		}
 	}
+	ispan.End()
 
 	bmroot, err := bmArr.Root()
 	if err != nil {

@@ -122,6 +122,9 @@ func (sm *StateManager) TipSetState(ctx context.Context, ts *types.TipSet) (st c
 }
 
 func (sm *StateManager) ExecutionTrace(ctx context.Context, ts *types.TipSet) (cid.Cid, []*api.InvocResult, error) {
+	ctx, span := trace.StartSpan(ctx, "stmgr.ExecutionTrace")
+	defer span.End()
+
 	var trace []*api.InvocResult
 	st, _, err := sm.computeTipSetState(ctx, ts.Blocks(), func(mcid cid.Cid, msg *types.Message, ret *vm.ApplyRet) error {
 		ir := &api.InvocResult{
