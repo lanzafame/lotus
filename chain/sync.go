@@ -967,6 +967,7 @@ func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock
 		return err
 	}
 
+	ictx, ispan := trace.StartSpan(ctx, "initStoreCheckMsg")
 	cst := cbor.NewCborStore(syncer.store.Blockstore())
 	st, err := state.LoadStateTree(cst, stateroot)
 	if err != nil {
@@ -1015,8 +1016,10 @@ func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock
 		return nil
 	}
 
-	store := adt.WrapStore(ctx, cst)
+	store := adt.WrapStore(ictx, cst)
+	ispan.End()
 
+	ictx, ispan = trace.StartSpan(ctx, "checkBlsMessages")
 	bmArr := adt.MakeEmptyArray(store)
 	for i, m := range b.BlsMessages {
 		if err := checkMsg(m); err != nil {
@@ -1028,8 +1031,9 @@ func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock
 			return xerrors.Errorf("failed to put bls message at index %d: %w", i, err)
 		}
 	}
+	ispan.End()
 
-	ictx, ispan := trace.StartSpan(ctx, "checkSecpkMessages")
+	ictx, ispan = trace.StartSpan(ctx, "checkSecpkMessages")
 	smArr := adt.MakeEmptyArray(store)
 	for i, m := range b.SecpkMessages {
 		if err := checkMsg(m); err != nil {
