@@ -878,6 +878,9 @@ func (syncer *Syncer) ValidateBlock(ctx context.Context, b *types.FullBlock) (er
 }
 
 func (syncer *Syncer) VerifyWinningPoStProof(ctx context.Context, h *types.BlockHeader, prevBeacon types.BeaconEntry, lbst cid.Cid, waddr address.Address) error {
+	_, span := trace.StartSpan(ctx, "syncer.VerifyWinningPoStProof")
+	defer span.End()
+
 	if build.InsecurePoStValidation {
 		if len(h.WinPoStProof) == 0 {
 			return xerrors.Errorf("[INSECURE-POST-VALIDATION] No winning post proof given")
@@ -934,6 +937,9 @@ func (syncer *Syncer) VerifyWinningPoStProof(ctx context.Context, h *types.Block
 
 // TODO: We should extract this somewhere else and make the message pool and miner use the same logic
 func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock, baseTs *types.TipSet) error {
+	_, span := trace.StartSpan(ctx, "syncer.checkBlockMessages")
+	defer span.End()
+
 	{
 		var sigCids []cid.Cid // this is what we get for people not wanting the marshalcbor method on the cid type
 		var pubks [][]byte
