@@ -479,6 +479,9 @@ func ComputeState(ctx context.Context, sm *StateManager, height abi.ChainEpoch, 
 }
 
 func GetLookbackTipSetForRound(ctx context.Context, sm *StateManager, ts *types.TipSet, round abi.ChainEpoch) (*types.TipSet, error) {
+	ctx, span := trace.StartSpan(ctx, "GetLookbackTipSetForRound")
+	defer span.End()
+
 	var lbr abi.ChainEpoch
 	if round > build.WinningPoStSectorSetLookback {
 		lbr = round - build.WinningPoStSectorSetLookback
@@ -498,6 +501,9 @@ func GetLookbackTipSetForRound(ctx context.Context, sm *StateManager, ts *types.
 }
 
 func MinerGetBaseInfo(ctx context.Context, sm *StateManager, bcn beacon.RandomBeacon, tsk types.TipSetKey, round abi.ChainEpoch, maddr address.Address, pv ffiwrapper.Verifier) (*api.MiningBaseInfo, error) {
+	ctx, span := trace.StartSpan(ctx, "MinerGetBaseInfo")
+	defer span.End()
+
 	ts, err := sm.ChainStore().LoadTipSet(tsk)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to load tipset for mining base: %w", err)
@@ -589,6 +595,9 @@ func MinerGetBaseInfo(ctx context.Context, sm *StateManager, bcn beacon.RandomBe
 }
 
 func (sm *StateManager) CirculatingSupply(ctx context.Context, ts *types.TipSet) (abi.TokenAmount, error) {
+	ctx, span := trace.StartSpan(ctx, "stmgr.CirculatingSupply")
+	defer span.End()
+
 	if ts == nil {
 		ts = sm.cs.GetHeaviestTipSet()
 	}

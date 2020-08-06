@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opencensus.io/trace"
 	"golang.org/x/xerrors"
 
 	address "github.com/filecoin-project/go-address"
@@ -283,6 +284,9 @@ func (bv *BlockValidator) validateMsgMeta(ctx context.Context, msg *types.BlockM
 }
 
 func (bv *BlockValidator) checkPowerAndGetWorkerKey(ctx context.Context, bh *types.BlockHeader) (address.Address, error) {
+	ctx, span := trace.StartSpan(ctx, "sub.checkPowerAndGetWorkerKey")
+	defer span.End()
+
 	addr := bh.Miner
 
 	bv.mx.Lock()

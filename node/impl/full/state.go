@@ -10,6 +10,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	cbg "github.com/whyrusleeping/cbor-gen"
+	"go.opencensus.io/trace"
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
 
@@ -322,6 +323,9 @@ func (a *StateAPI) StateReplay(ctx context.Context, tsk types.TipSetKey, mc cid.
 }
 
 func (a *StateAPI) stateForTs(ctx context.Context, ts *types.TipSet) (*state.StateTree, error) {
+	ctx, span := trace.StartSpan(ctx, "stateAPI.stateForTs")
+	defer span.End()
+
 	if ts == nil {
 		ts = a.Chain.GetHeaviestTipSet()
 	}

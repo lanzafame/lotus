@@ -638,7 +638,7 @@ func (syncer *Syncer) ValidateBlock(ctx context.Context, b *types.FullBlock) (er
 		log.Infow("block validation", "took", time.Since(validationStart), "height", b.Header.Height)
 	}()
 
-	ctx, span := trace.StartSpan(ctx, "validateBlock")
+	ctx, span := trace.StartSpan(ctx, "syncer.ValidateBlock")
 	defer span.End()
 
 	if build.InsecurePoStValidation {

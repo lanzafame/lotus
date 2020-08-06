@@ -63,7 +63,7 @@ func cidsToKey(cids []cid.Cid) string {
 }
 
 func (sm *StateManager) TipSetState(ctx context.Context, ts *types.TipSet) (st cid.Cid, rec cid.Cid, err error) {
-	ctx, span := trace.StartSpan(ctx, "stmgr.tipSetState")
+	ctx, span := trace.StartSpan(ctx, "stmgr.TipSetState")
 	defer span.End()
 	if span.IsRecordingEvents() {
 		span.AddAttributes(trace.StringAttribute("tipset", fmt.Sprint(ts.Cids())))
@@ -302,7 +302,7 @@ func (sm *StateManager) ApplyBlocks(ctx context.Context, parentEpoch abi.ChainEp
 }
 
 func (sm *StateManager) computeTipSetState(ctx context.Context, blks []*types.BlockHeader, cb ExecCallback) (cid.Cid, cid.Cid, error) {
-	ctx, span := trace.StartSpan(ctx, "computeTipSetState")
+	ctx, span := trace.StartSpan(ctx, "stmgr.computeTipSetState")
 	defer span.End()
 
 	for i := 0; i < len(blks); i++ {
@@ -376,6 +376,9 @@ func (sm *StateManager) ChainStore() *store.ChainStore {
 // ResolveToKeyAddress is similar to `vm.ResolveToKeyAddr` but does not allow `Actor` type of addresses.
 // Uses the `TipSet` `ts` to generate the VM state.
 func (sm *StateManager) ResolveToKeyAddress(ctx context.Context, addr address.Address, ts *types.TipSet) (address.Address, error) {
+	ctx, span := trace.StartSpan(ctx, "stmgr.ResolveToKeyAddress")
+	defer span.End()
+
 	switch addr.Protocol() {
 	case address.BLS, address.SECP256K1:
 		return addr, nil
@@ -674,6 +677,9 @@ func (sm *StateManager) tipsetExecutedMessage(ts *types.TipSet, msg cid.Cid, vmm
 }
 
 func (sm *StateManager) ListAllActors(ctx context.Context, ts *types.TipSet) ([]address.Address, error) {
+	ctx, span := trace.StartSpan(ctx, "stmgr.ListAllActors")
+	defer span.End()
+
 	if ts == nil {
 		ts = sm.cs.GetHeaviestTipSet()
 	}
@@ -739,6 +745,9 @@ func (sm *StateManager) MarketBalance(ctx context.Context, addr address.Address,
 }
 
 func (sm *StateManager) ValidateChain(ctx context.Context, ts *types.TipSet) error {
+	ctx, span := trace.StartSpan(ctx, "stmgr.ValidateChain")
+	defer span.End()
+
 	tschain := []*types.TipSet{ts}
 	for ts.Height() != 0 {
 		next, err := sm.cs.LoadTipSet(ts.Parents())
@@ -777,6 +786,9 @@ type GenesisMsigEntry struct {
 }
 
 func (sm *StateManager) setupGenesisMsigs(ctx context.Context) error {
+	ctx, span := trace.StartSpan(ctx, "stmgr.setupGenesisMsigs")
+	defer span.End()
+
 	gb, err := sm.cs.GetGenesis()
 	if err != nil {
 		return xerrors.Errorf("getting genesis block: %w", err)
