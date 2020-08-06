@@ -67,6 +67,8 @@ func (sm *StateManager) TipSetState(ctx context.Context, ts *types.TipSet) (st c
 	defer span.End()
 	if span.IsRecordingEvents() {
 		span.AddAttributes(trace.StringAttribute("tipset", fmt.Sprint(ts.Cids())))
+		// make sure that cache is set to false for "this" call of TipSetState
+		span.AddAttributes(trace.BoolAttribute("cache", false))
 	}
 
 	ck := cidsToKey(ts.Cids())
