@@ -878,7 +878,7 @@ func (syncer *Syncer) ValidateBlock(ctx context.Context, b *types.FullBlock) (er
 }
 
 func (syncer *Syncer) VerifyWinningPoStProof(ctx context.Context, h *types.BlockHeader, prevBeacon types.BeaconEntry, lbst cid.Cid, waddr address.Address) error {
-	_, span := trace.StartSpan(ctx, "syncer.VerifyWinningPoStProof")
+	ctx, span := trace.StartSpan(ctx, "syncer.VerifyWinningPoStProof")
 	defer span.End()
 
 	if build.InsecurePoStValidation {
@@ -937,7 +937,7 @@ func (syncer *Syncer) VerifyWinningPoStProof(ctx context.Context, h *types.Block
 
 // TODO: We should extract this somewhere else and make the message pool and miner use the same logic
 func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock, baseTs *types.TipSet) error {
-	_, span := trace.StartSpan(ctx, "syncer.checkBlockMessages")
+	ctx, span := trace.StartSpan(ctx, "syncer.checkBlockMessages")
 	defer span.End()
 
 	{
@@ -1078,7 +1078,7 @@ func (syncer *Syncer) checkBlockMessages(ctx context.Context, b *types.FullBlock
 }
 
 func (syncer *Syncer) verifyBlsAggregate(ctx context.Context, sig *crypto.Signature, msgs []cid.Cid, pubks [][]byte) error {
-	_, span := trace.StartSpan(ctx, "syncer.verifyBlsAggregate")
+	ctx, span := trace.StartSpan(ctx, "syncer.verifyBlsAggregate")
 	defer span.End()
 	span.AddAttributes(
 		trace.Int64Attribute("msgCount", int64(len(msgs))),
